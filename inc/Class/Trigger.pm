@@ -3,12 +3,11 @@ package Class::Trigger;
 
 use strict;
 use vars qw($VERSION);
-$VERSION = "0.13";
+$VERSION = "0.12";
 
 use Carp ();
 
 my (%Triggers, %TriggerPoints);
-my %Fetch_All_Triggers_Cache;
 
 sub import {
     my $class = shift;
@@ -44,11 +43,6 @@ sub add_trigger {
     __validate_triggerpoint( $proto, $when );
     Carp::croak('add_trigger() needs coderef') unless ref($code) eq 'CODE';
     push @{ $triggers->{$when} }, [ $code, $abortable ];
-
-    # Clear the cache when class triggers are added.  Because triggers are 
-    # inherited adding a trigger to one class may effect others.  Simplest
-    # thing to do is to clear the whole thing.
-    %Fetch_All_Triggers_Cache = () unless ref $proto;
 
     1;
 }
@@ -91,11 +85,6 @@ sub __fetch_all_triggers {
     my ($obj, $when, $list, $order) = @_;
     my $class = ref $obj || $obj;
     my $return;
-    my $when_key = defined $when ? $when : '';
-    
-    return __cached_triggers($obj, $when)
-        if $Fetch_All_Triggers_Cache{$class}{$when_key};
-    
     unless ($list) {
         # Absence of the $list parameter conditions the creation of
         # the unrolled list of triggers. These keep track of the unique
@@ -126,33 +115,13 @@ sub __fetch_all_triggers {
         foreach my $class (@$order) {
             push @triggers, @{ $list->{$class} };
         }
-
-        # Only cache the class triggers, object triggers would
-        # necessitate a much larger cache and they're cheap to
-        # get anyway.
-        $Fetch_All_Triggers_Cache{$class}{$when_key} = \@triggers;
-
-        return __cached_triggers($obj, $when);
+        if (ref $obj && defined $when) {
+            my $obj_triggers = $obj->{__triggers}{$when};
+            push @triggers, @$obj_triggers if $obj_triggers;
+        }
+        return @triggers;
     }
 }
-
-
-sub __cached_triggers {
-    my($proto, $when) = @_;
-    my $class = ref $proto || $proto;
-    
-    return @{ $Fetch_All_Triggers_Cache{$class}{$when || ''} },
-           @{ __object_triggers($proto, $when) };
-}
-
-
-sub __object_triggers {
-    my($obj, $when) = @_;
-    
-    return [] unless ref $obj && defined $when;
-    return $obj->{__triggers}{$when} || [];
-}
-
 
 sub __validate_triggerpoint {
     return unless my $points = $TriggerPoints{ref $_[0] || $_[0]};
@@ -170,5 +139,5 @@ sub __fetch_triggers {
 1;
 __END__
 
-#line 380
+#line 349
 
