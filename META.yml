@@ -19,9 +19,9 @@ no_index:
     - t
 requires:
   CGI: 0
-  HTTP::Session: 0.05
+  HTTP::Session: 0.21
   Moose: 0.59
   perl: 5.8.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.02
+version: 0.03
